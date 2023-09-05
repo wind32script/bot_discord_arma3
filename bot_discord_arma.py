@@ -6,8 +6,8 @@
 #pip install asyncio
 #pip install berconpy
 #$ pip install auto-py-to-exe
-#auto-py-to-exe
-
+#$ auto-py-to-exe
+#pip install mysql-connector-python
 import configparser
 import discord
 import datetime
@@ -15,28 +15,37 @@ from discord.ext import commands, tasks
 from pywinauto import application
 import random
 import configparser
+import mysql.connector
 config = configparser.ConfigParser()
 config.read( 'bot_discord_arma.ini')
 main_window = config.get('Settings', 'main_window')
 token = config.get('Settings', 'token')
 app = config.get('Settings', 'app')
+
+host= config.get('Settings', 'host') 
+user= config.get('Settings', 'user')
+password= config.get('Settings', 'password')
+database= config.get('Settings', 'database')
+    
 # Выводим полученные значения
 print(f"main_window: {main_window}")
 print(f"app: {app}")
-
-
 
 def arma_concole_text():
     # Подключаемся к процессу приложения
     global app
     app = application.Application().connect(path="arma3server_x64.exe")
-    main_window2 = app.top_window()
-    print(main_window2)
-    print(main_window2.print_control_identifiers())
+    
+    # Получаем основное окно приложения
+    #main_window2 = app.top_window()
+    # Выводим информацию о окне
+    #print(main_window2)
+    # Выводим информацию о всех элементах на окне
+   # print(main_window2.print_control_identifiers())
     # Получите основное окно приложения
     
     #global main_window
-    main_window = app.window(title = main_window )
+    main_window = app.window(title = 'Arma 3 Console version 2.14.150957 x64 : port 2302' )
     
     # Найдите элемент по классу и получите его текст
     element = main_window.child_window(class_name='RichEdit20A') #RichEdit20A
@@ -104,6 +113,59 @@ async def on_ready():
     send_time.start()
     print(f'Discord авторизован {bot.user.name}')
     await bot.change_presence(status=discord.Status.online, activity=discord.Game('ARMA 3'))
-     
-bot.run(token)
+    conn = mysql.connector.connect(
+        host=  host,
+        user=user,
+        password=  password,
+        database= database
+        )
+    cursor = conn.cursor()
+    sql_query = "SELECT `name`,`score` FROM `account` WHERE 1 ORDER BY `account`.`score` DESC LIMIT 10"
+    cursor.execute(sql_query)
+    # Получение всех данных
+    data = cursor.fetchall()
+    # Вывод полученных данных
+    discord_msg = 'Игроки с наибольшей репутацией на сервере: \n  '
+    num_d = 1
+    num_d_probel=''
+    for row in data:
+        print(row)
+        if num_d<10:
+            num_d_probel=' '
+        discord_msg += str(num_d) + num_d_probel+' ' +   row[0] + ' ' + str(row[1])+ ' \n '
+        #discord_msg +=row[0]
+        # str(num_d) + ' ' +  
+        num_d = num_d +1
 
+    sql_query = "SELECT `name`,`locker` FROM `account` WHERE 1 ORDER BY `account`.`locker` DESC LIMIT 10"
+    cursor.execute(sql_query)
+    # Получение всех данных
+    data = cursor.fetchall()
+    # Вывод полученных данных
+    discord_msg2 = 'Самые богатые игроки(банк): \n  '
+    num_d = 1
+    num_d_probel=''
+    for row in data:
+        print(row)
+        if num_d<10:
+            num_d_probel=' '
+        discord_msg2 += str(num_d) + num_d_probel+' ' +   row[0] + ' ' + str(row[1])+ ' \n '
+        #discord_msg +=row[0]
+        # str(num_d) + ' ' +  
+        num_d = num_d +1
+        
+    channel_id = 1140674220154699959
+    channel = bot.get_channel(channel_id)
+    message = await channel.fetch_message(1141000110575210536)
+    if message:
+       await message.edit(content=discord_msg)
+       print('Message modified: '+ discord_msg)
+    message = await channel.fetch_message(1141000109035880569)
+    if message:
+       await message.edit(content=discord_msg2)
+       print('Message modified: '+ discord_msg2)
+    
+    cursor.close()
+    conn.close()  
+    
+bot.run(token)
